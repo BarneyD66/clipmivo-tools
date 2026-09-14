@@ -1,0 +1,34 @@
+{
+  "name": "@clipmivo/cli",
+  "version": "0.2.6",
+  "description": "ClipmivoAI command-line client",
+  "type": "module",
+  "bin": {
+    "clipmivo": "bin/clipmivo.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    "./webhooks": "./lib/webhooks.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BarneyD66/clipmivo-tools.git",
+    "directory": "cli"
+  },
+  "homepage": "https://clipmivoai.com/en/api",
+  "bugs": {
+    "url": "https://github.com/BarneyD66/clipmivo-tools/issues"
+  }
+}

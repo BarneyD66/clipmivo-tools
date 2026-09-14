@@ -1,0 +1,15 @@
+{
+  "name": "clipmivo-tools",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "cli",
+    "mcp"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "npm test --workspace=@clipmivo/cli && npm test --workspace=@clipmivo/mcp"
+  }
+}

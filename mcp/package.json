@@ -1,0 +1,36 @@
+{
+  "name": "@clipmivo/mcp",
+  "version": "0.1.7",
+  "description": "Local MCP server for ClipmivoAI video workflows",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "clipmivo-mcp": "bin/clipmivo-mcp.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "README.md",
+    "vendor",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "2.0.0",
+    "zod": "4.2.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BarneyD66/clipmivo-tools.git",
+    "directory": "mcp"
+  },
+  "homepage": "https://clipmivoai.com/en/api",
+  "bugs": {
+    "url": "https://github.com/BarneyD66/clipmivo-tools/issues"
+  }
+}

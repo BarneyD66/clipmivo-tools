@@ -1,0 +1,4 @@
+interface:
+  display_name: "ClipmivoAI Video"
+  short_description: "Create AI videos with ClipmivoAI API, CLI or MCP"
+  default_prompt: "Use $clipmivo-video to create a video within my specified budget."

@@ -1,0 +1,8 @@
+{
+  "model": "seedance-2.0-mini-text-to-video",
+  "prompt": "A paper boat drifts across a calm pond in warm morning light.",
+  "duration": 4,
+  "quality": "480p",
+  "aspect_ratio": "16:9",
+  "generate_audio": false
+}
