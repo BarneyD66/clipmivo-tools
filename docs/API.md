@@ -19,11 +19,11 @@ curl --fail-with-body https://clipmivoai.com/api/v1/videos/generations/quote \
   --data-binary @examples/request.json --output quote.json
 ```
 
-Check `success` and `data.credits_to_hold`. One credit equals US$0.01. This is the amount to reserve; usage-based models settle after generation. No task has been created by these calls.
+Check `success` and `data.credits_to_hold`. Display this value directly in Credits without multiplying it by 100. This is the amount to reserve; usage-based models settle after generation, and unused reserved credits return to the balance. The reference conversion is 100 Credits = US$1. No task has been created by these calls.
 
 ## Confirm a maximum and submit
 
-The following step enforces a sample maximum of US$0.25 (25 credits). Set a limit appropriate to your budget and inspect the quoted settings first. It creates a new confirmed request without overwriting a prior one:
+The following step enforces a sample maximum of 25 Credits (US$0.25 equivalent). Set a limit appropriate to your budget and inspect the quoted settings first. It creates a new confirmed request without overwriting a prior one:
 
 ```sh
 export CLIPMIVO_MAX_CREDITS=25

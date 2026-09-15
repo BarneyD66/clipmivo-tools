@@ -13,7 +13,7 @@ English · [简体中文](docs/README.zh-CN.md) · [Website](https://clipmivoai.
 | MCP | [Connect a local stdio server](mcp/README.md) |
 | Agent Skill | [clipmivo-video](skills/clipmivo-video/SKILL.md) |
 
-Sign in at [ClipmivoAI](https://clipmivoai.com/?section=api), create a scoped key in Developer and add credits through the website. Read operations require `video:read`, quotes and generation require `video:write`, and media uploads require `files:write`. API requests create video tasks; they do not purchase credit top-ups.
+Sign in at [ClipmivoAI](https://clipmivoai.com/?section=api), create a scoped key in the API / CLI (Developer) workspace and add credits through the website. Read operations require `video:read`, quotes and generation require `video:write`, and media uploads require `files:write`. API requests create video tasks; they do not purchase credit top-ups.
 
 ## Install
 
@@ -54,6 +54,12 @@ clipmivo download TASK_ID --output result.mp4 --json
 
 Keep the same confirmed request and idempotency key after an uncertain submission. A wait timeout is not a failed video; resume status queries instead of creating another task. Model options and prices can change: use live model discovery and quotes.
 
+## Credit billing and your application
+
+Show `credits_to_hold` directly as Credits; do not multiply an API credit quote by 100. Credits are reserved before generation, then settled using actual usage where applicable. Unused reserved credits return to the balance. The reference conversion is 100 Credits = US$1; top-ups are purchased separately on the website.
+
+For a customer-facing app, keep the ClipmivoAI key on your server. Keys on one account share its balance and account-level resources; they are not isolated reseller subaccounts. See [application integration](docs/APPLICATIONS.md).
+
 ## MCP
 
 Configure a client that supports local stdio MCP:
@@ -78,7 +84,7 @@ Store the real key in your client's secret settings. On Windows use an existing 
 
 Copy `skills/clipmivo-video` into the skill directory supported by your agent. For Codex, use `~/.codex/skills/clipmivo-video`. Restart or reload skills, then ask:
 
-> Use $clipmivo-video to create a video of a paper boat on a pond. Maximum generation spend: US$0.25.
+> Use $clipmivo-video to create a video of a paper boat on a pond. Maximum generation spend: 25 Credits.
 
 The Skill can use the installed MCP or CLI. It preserves existing budget authorization and requires a valid quote before paid submission. Installing the Skill does not create an API key or grant credits.
 

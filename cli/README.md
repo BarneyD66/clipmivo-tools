@@ -31,7 +31,7 @@ clipmivo --version
 ```
 
 Set `CLIPMIVO_API_KEY` in your shell/secret manager. Obtain a scoped key in the
-website's Developer area after signing in. Never put the key in a request JSON,
+website's API / CLI (Developer) workspace after signing in. Never put the key in a request JSON,
 Git, screenshots or support messages. The CLI never saves it. `config show`
 reports only whether a key is present. Availability and pricing depend on the
 chosen model/settings; obtain a live quote before creating a task.

@@ -13,13 +13,13 @@ CLI: `npm install -g https://github.com/BarneyD66/clipmivo-tools/releases/downlo
 
 MCP: `npm install -g https://github.com/BarneyD66/clipmivo-tools/releases/download/v0.1.0/clipmivo-mcp-0.1.7.tgz`
 
-If a key is absent, ask the user to configure one from the website Developer area in their secret manager or environment. Do not ask them to paste it into chat. For MCP file operations, `CLIPMIVO_FILES_DIR` must point to a user-approved local directory. Installation alone provides no credit balance.
+If a key is absent, ask the user to configure one from the website API / CLI (Developer) workspace in their secret manager or environment. Do not ask them to paste it into chat. For MCP file operations, `CLIPMIVO_FILES_DIR` must point to a user-approved local directory. Installation alone provides no credit balance.
 
 ## Generate
 
 1. Discover current workflow IDs and supported settings using `list_models` or `clipmivo models --json`. Read `credit_balance` or `clipmivo balance --json`. Do not invent model availability, duration or pricing.
 2. For references, upload the user's selected files through `upload_asset` or `clipmivo upload --file PATH --json`. Use returned owned-media URLs; do not submit arbitrary external image URLs. Video/audio uploads require duration metadata.
-3. Prepare a focused prompt and supported request. Get `quote_video` or `clipmivo quote --file request.json --json`. A quote does not create a task. Show customer cost in USD: 100 credits = US$1; distinguish the reserved maximum from final usage-based charges.
+3. Prepare a focused prompt and supported request. Get `quote_video` or `clipmivo quote --file request.json --json`. A quote does not create a task. Show the returned quote directly in Credits (for example, 25 Credits). Do not multiply credits_to_hold by 100. Distinguish the reserved maximum from final usage-based charges and explain that unused reserved credits return to the balance. If the user supplies a USD budget, convert it using 100 Credits = US$1 without increasing that budget.
 4. Respect existing user authorization and remaining budget. If no spending limit is authorized, obtain one before a paid submission. Do not request confirmation again for a quote within an already authorized limit. Do not exceed the budget or silently accept a changed quote.
 5. MCP: call `create_video` with the exact request, `accepted_credits` from the quote and a unique `idempotency_key`. CLI: add the returned `credits_to_hold` as `quoted_credits` to a new confirmed JSON file, then call `clipmivo generate --file confirmed.json --idempotency-key UNIQUE_KEY --json`.
 6. Store the task ID. Use `get_video` / `wait_video`, or `clipmivo get ID --json` / `clipmivo wait ID --timeout 600 --json`. Poll existing tasks; a timeout or cancellation does not authorize another paid generation.

@@ -31,7 +31,7 @@ npm install -g https://github.com/BarneyD66/clipmivo-tools/releases/download/v0.
 clipmivo-mcp --version
 ```
 
-Create a scoped key in the website Developer area. Read tools need video:read;
+Create a scoped key in the website API / CLI (Developer) workspace. Read tools need video:read;
 quote_video and generation/callback changes need video:write; uploads need files:write.
 A quote does not charge credits, but it uses the write-scoped quote endpoint. Store the
 key using your MCP client's secret settings. Do not place real keys in Git or
