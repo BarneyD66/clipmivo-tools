@@ -112,7 +112,7 @@ async function main() {
     return;
   }
   if (v.version) {
-    emit({ version: '0.2.6' });
+    emit({ version: '0.2.7' });
     return;
   }
   const [command, id] = p;

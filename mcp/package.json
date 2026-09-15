@@ -1,6 +1,6 @@
 {
   "name": "@clipmivo/mcp",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Local MCP server for ClipmivoAI video workflows",
   "type": "module",
   "engines": {

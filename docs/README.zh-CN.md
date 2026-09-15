@@ -12,8 +12,8 @@
 需要 Node.js 22 或更新版本：
 
 ```sh
-npm install -g https://github.com/BarneyD66/clipmivo-tools/releases/download/v0.1.0/clipmivo-cli-0.2.6.tgz
-npm install -g https://github.com/BarneyD66/clipmivo-tools/releases/download/v0.1.0/clipmivo-mcp-0.1.7.tgz
+npm install -g https://github.com/BarneyD66/clipmivo-tools/releases/download/v0.1.1/clipmivo-cli-0.2.7.tgz
+npm install -g https://github.com/BarneyD66/clipmivo-tools/releases/download/v0.1.1/clipmivo-mcp-0.1.8.tgz
 ```
 
 通过环境变量或客户端密钥设置提供 `CLIPMIVO_API_KEY`。不要把真实密钥提交到 GitHub。

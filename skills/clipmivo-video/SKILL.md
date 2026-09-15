@@ -9,9 +9,9 @@ Use the user's configured ClipmivoAI connection. Prefer an available Clipmivo MC
 
 ## Setup
 
-CLI: `npm install -g https://github.com/BarneyD66/clipmivo-tools/releases/download/v0.1.0/clipmivo-cli-0.2.6.tgz`
+CLI: `npm install -g https://github.com/BarneyD66/clipmivo-tools/releases/download/v0.1.1/clipmivo-cli-0.2.7.tgz`
 
-MCP: `npm install -g https://github.com/BarneyD66/clipmivo-tools/releases/download/v0.1.0/clipmivo-mcp-0.1.7.tgz`
+MCP: `npm install -g https://github.com/BarneyD66/clipmivo-tools/releases/download/v0.1.1/clipmivo-mcp-0.1.8.tgz`
 
 If a key is absent, ask the user to configure one from the website API / CLI (Developer) workspace in their secret manager or environment. Do not ask them to paste it into chat. For MCP file operations, `CLIPMIVO_FILES_DIR` must point to a user-approved local directory. Installation alone provides no credit balance.
 

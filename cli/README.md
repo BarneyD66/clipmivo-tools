@@ -25,7 +25,7 @@ complete 时复用返回的素材，uploading 时不要重复上传。状态记�
 Requires Node.js 22 or newer. Install the published package:
 
 ```sh
-npm install -g https://github.com/BarneyD66/clipmivo-tools/releases/download/v0.1.0/clipmivo-cli-0.2.6.tgz
+npm install -g https://github.com/BarneyD66/clipmivo-tools/releases/download/v0.1.1/clipmivo-cli-0.2.7.tgz
 clipmivo --help
 clipmivo --version
 ```

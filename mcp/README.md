@@ -27,7 +27,7 @@ website. This package is not a hosted HTTP/OAuth connector URL.
 Requires Node.js 22 or newer and npm:
 
 ```sh
-npm install -g https://github.com/BarneyD66/clipmivo-tools/releases/download/v0.1.0/clipmivo-mcp-0.1.7.tgz
+npm install -g https://github.com/BarneyD66/clipmivo-tools/releases/download/v0.1.1/clipmivo-mcp-0.1.8.tgz
 clipmivo-mcp --version
 ```
 

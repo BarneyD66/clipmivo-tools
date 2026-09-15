@@ -7,7 +7,7 @@ const endpoint=z.string().regex(/^cb_[A-Za-z0-9_-]{8,100}$/);
 const assetId=z.string().regex(/^asset_[a-f0-9]{32}$/);
 const request=z.record(z.string(),z.unknown());
 export function createServer() {
-  const server=new McpServer({name:'clipmivo',version:'0.1.7'});
+  const server=new McpServer({name:'clipmivo',version:'0.1.8'});
   const tool=(name,description,schema,readOnly,handler)=>server.registerTool(name,{
     description,inputSchema:z.object(schema).strict(),annotations:{readOnlyHint:readOnly,destructiveHint:!readOnly,idempotentHint:readOnly,openWorldHint:true},
   },async(input,ctx)=>{

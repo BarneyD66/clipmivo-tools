@@ -5,7 +5,7 @@ import {spawnSync} from 'node:child_process';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 await test('documented confirmation binds quotes and preserves existing accepted requests',()=>{
- const readme=readFileSync(new URL('../README.md',import.meta.url),'utf8');
+ const readme=readFileSync(new URL('../README.md',import.meta.url),'utf8').replaceAll('\r\n','\n');
  const code=readme.split("node --input-type=module <<'NODE'\n")[1]?.split('\nNODE')[0];
  assert.ok(code);
  for(const scenario of ['accepted','over','failed','malformed','existing']){

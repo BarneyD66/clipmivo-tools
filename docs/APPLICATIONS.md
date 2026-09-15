@@ -23,4 +23,4 @@ Install the CLI or local MCP server and configure your key securely, then use th
 
 The budget is an upper limit, not a fixed model price. If the quote exceeds it, adjust settings or obtain a new limit.
 
-This documentation update applies to the repository source. Existing v0.1.0 release downloads retain their published contents; copy the Skill from the current repository for Credit-first instructions. Website deployment status is independent of this repository.
+The v0.1.1 release includes these Credit-first instructions in the downloadable CLI, MCP and Skill packages. Website deployment status is independent of this repository.

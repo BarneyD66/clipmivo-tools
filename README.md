@@ -20,8 +20,8 @@ Sign in at [ClipmivoAI](https://clipmivoai.com/?section=api), create a scoped ke
 Requires Node.js 22+ and npm. Published downloads are hosted in GitHub Releases; these commands do not depend on an npm registry listing:
 
 ```sh
-npm install -g https://github.com/BarneyD66/clipmivo-tools/releases/download/v0.1.0/clipmivo-cli-0.2.6.tgz
-npm install -g https://github.com/BarneyD66/clipmivo-tools/releases/download/v0.1.0/clipmivo-mcp-0.1.7.tgz
+npm install -g https://github.com/BarneyD66/clipmivo-tools/releases/download/v0.1.1/clipmivo-cli-0.2.7.tgz
+npm install -g https://github.com/BarneyD66/clipmivo-tools/releases/download/v0.1.1/clipmivo-mcp-0.1.8.tgz
 clipmivo --version
 clipmivo-mcp --version
 ```
