@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "id": "paper-boat-demo",
+  "title": "A paper boat at dawn",
+  "aspect_ratio": "16:9",
+  "quality": "720p",
+  "target_seconds": 12,
+  "budget_credits": 100,
+  "preference": "economy",
+  "shots": [
+    {"id":"opening","duration":4,"mode":"text-to-video","prompt":"Wide shot of a still pond at dawn. A small white paper boat enters from the left. Soft natural light, gentle camera push forward.","caption":"A small journey begins."},
+    {"id":"journey","duration":4,"mode":"text-to-video","prompt":"Close-up of a white paper boat drifting on still water at dawn. Small ripples spread behind it. Soft natural light, low tracking camera.","caption":"Follow the morning light."},
+    {"id":"ending","duration":4,"mode":"text-to-video","prompt":"Wide shot of a white paper boat approaching a reed-covered shore at dawn. Soft natural light, camera slowly pulls back.","caption":"Every journey finds a shore."}
+  ]
+}

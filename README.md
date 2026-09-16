@@ -12,6 +12,7 @@ English · [简体中文](docs/README.zh-CN.md) · [Website](https://clipmivoai.
 | CLI | [Install and use the CLI](cli/README.md) |
 | MCP | [Connect a local stdio server](mcp/README.md) |
 | Agent Skill | [clipmivo-video](skills/clipmivo-video/SKILL.md) |
+| Multi-shot film preview | [clipmivo-film](skills/clipmivo-film/SKILL.md) |
 
 Sign in at [ClipmivoAI](https://clipmivoai.com/?section=api), create a scoped key in the API / CLI (Developer) workspace and add credits through the website. Read operations require `video:read`, quotes and generation require `video:write`, and media uploads require `files:write`. API requests create video tasks; they do not purchase credit top-ups.
 
@@ -93,3 +94,9 @@ The Skill can use the installed MCP or CLI. It preserves existing budget authori
 Use GitHub issues for reproducible client bugs without credentials or private media. Account, payment and billing questions: **contact@clipmivoai.com**. Service use remains subject to the website's terms and privacy policy.
 
 This repository contains public client tools and documentation, not the website backend.
+
+## Multi-shot film preview
+
+The new [clipmivo-film skill](skills/clipmivo-film/SKILL.md) adds a local script-to-film workflow: live video capability/quote selection, a cumulative Credit budget, resumable per-shot jobs and Shotcut editing. See [installation and commands](skills/clipmivo-film/references/install.md).
+
+Image and video generation will share the same customer key. Public image API integration, server-side creative model routing and cloud editing are pending. The preview uses existing owned references and local video quote selection; it is not a verified best-quality model recommender. Real paid end-to-end acceptance is still pending. The included tests use local fixtures; the actual Shotcut adapter has also rendered a labelled 12-second synthetic sample with captions and audio.
