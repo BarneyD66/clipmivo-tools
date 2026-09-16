@@ -355,19 +355,22 @@ export async function run(
     await persist(state);
   };
   const successful = (job) => ['succeeded', 'completed'].includes(job.status);
-  const poll = async (job, label) => {
+  const failed = (job) => ['failed', 'cancelled', 'canceled', 'expired'].includes(job.status);
+  const currentKeys = new Set(state.shots.map((s) => s.job_key));
+  const poll = async (job, label, current = true) => {
     const result = await api.json(`videos/generations/${encodeURIComponent(job.task_id)}`);
     check(typeof result?.status === 'string', 'Invalid task status');
     job.status = result.status;
     job.updated = new Date().toISOString();
     await checkpoint();
-    if (['failed', 'needs_review', 'cancelled', 'canceled', 'expired'].includes(job.status))
+    if (job.status === 'needs_review' || (current && failed(job)))
       throw new Error(`Shot ${label}: ${job.status}. No automatic paid regeneration.`);
   };
   // Refresh all outstanding historical jobs before admitting more work. A revised
   // shot does not cancel its old remote task or free its concurrency slot.
   for (const [key, job] of Object.entries(state.jobs)) {
-    if (job.task_id && !successful(job)) await poll(job, key);
+    if (currentKeys.has(key) && failed(job)) throw new Error(`Shot ${key}: ${job.status}. No automatic paid regeneration.`);
+    if (job.task_id && !successful(job) && !failed(job)) await poll(job, key, currentKeys.has(key));
   }
   for (const shot of state.shots) {
     const job = state.jobs[shot.job_key];
@@ -377,7 +380,7 @@ export async function run(
         throw new Error(
           'Uncertain submission: use --recover-uncertain with --submit to reuse the saved request/key',
         );
-      const active = Object.values(state.jobs).filter((j) => j.submitted && !successful(j)).length;
+      const active = Object.values(state.jobs).filter((j) => j.submitted && !successful(j) && !failed(j)).length;
       if (!job.submitted && active >= 3) continue;
       // Write-ahead record: a crash cannot accidentally create a new billable task.
       const wasSubmitted = job.submitted;

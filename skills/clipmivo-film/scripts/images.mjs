@@ -75,7 +75,9 @@ export async function planImages(manifest, state, api) {
 export async function runImages(state, api, persist, { submit = false, recoverUncertain = false } = {}) {
   check(state.origin === api.origin, 'Project origin mismatch');
   const checkpoint = async () => { state.budget = projectBudget(state); await persist(state); };
-  const poll = async (job) => {
+  const failed = (job) => ['failed', 'cancelled', 'canceled', 'expired'].includes(job.status);
+  const currentKeys = new Set(state.images.map((e) => e.job_key));
+  const poll = async (job, current = true) => {
     const result = await api.json(`images/jobs/${encodeURIComponent(job.task_id)}`);
     check(typeof result.status === 'string', 'Invalid image task status');
     job.status = result.status;
@@ -84,17 +86,18 @@ export async function runImages(state, api, persist, { submit = false, recoverUn
       job.asset_id = result.asset_id;
     }
     await checkpoint();
-    check(!['failed', 'needs_review', 'cancelled', 'expired'].includes(job.status), `Image ${job.task_id}: ${job.status}. No automatic paid regeneration.`);
+    check(job.status !== 'needs_review' && !(current && failed(job)), `Image ${job.task_id}: ${job.status}. No automatic paid regeneration.`);
   };
   projectBudget(state);
-  for (const job of Object.values(state.image_jobs)) {
-    if (job.task_id && job.status !== 'succeeded') await poll(job);
+  for (const [key, job] of Object.entries(state.image_jobs)) {
+    check(!(currentKeys.has(key) && failed(job)), `Image ${job.task_id}: ${job.status}. No automatic paid regeneration.`);
+    if (job.task_id && job.status !== 'succeeded' && !failed(job)) await poll(job, currentKeys.has(key));
   }
   for (const entry of state.images) {
     const job = state.image_jobs[entry.job_key];
     if (job.task_id || !submit) continue;
     check(!job.submitted || recoverUncertain, 'Uncertain image submission: use --submit --recover-uncertain');
-    if (!job.submitted && Object.values(state.image_jobs).filter((j) => j.submitted && j.status !== 'succeeded').length >= 2) continue;
+    if (!job.submitted && Object.values(state.image_jobs).filter((j) => j.submitted && j.status !== 'succeeded' && !failed(j)).length >= 2) continue;
     const wasSubmitted = job.submitted;
     job.submitted = true;
     job.status = 'submitting';

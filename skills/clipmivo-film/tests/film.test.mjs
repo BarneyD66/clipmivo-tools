@@ -452,3 +452,38 @@ test('image capability selection excludes unsupported reference profiles and pre
   assert.equal(imageCandidates({ ...image, asset_ids: ['asset_existing'] }, [model]).length, 0);
   assert.equal(imageCandidates({ ...image, model: 'other' }, [model]).length, 0);
 });
+
+test('explicit video revision can replace a failed task while preserving its cost', async () => {
+  const api = fixture(), base = api.json.bind(api), m = manifest();
+  m.shots = [m.shots[0]];
+  let fail = true;
+  api.json = async (...args) => args[0].startsWith('videos/generations/task_') && fail ? { status: 'failed' } : base(...args);
+  let state = await plan(m, null, api);
+  await assert.rejects(run(state, api, async () => {}, { submit: true }), /failed/);
+  await assert.rejects(run(state, api, async () => {}, { submit: true }), /failed/);
+  assert.equal(api.submissions.length, 1);
+  fail = false;
+  m.shots[0].revision = 2;
+  state = await plan(m, state, api);
+  await run(state, api, async () => {}, { submit: true });
+  assert.equal(api.submissions.length, 2);
+  assert.equal(state.budget.committed, 6);
+});
+
+test('explicit image revision replaces failed reference without erasing its cost', async () => {
+  const api = imageFixture(), base = api.json.bind(api), m = imageManifest();
+  let fail = true;
+  api.json = async (...args) => args[0].startsWith('images/jobs/') && fail ? { status: 'failed' } : base(...args);
+  let state = await plan(m, null, api);
+  await assert.rejects(run(state, api, async () => {}, { submit: true }), /failed/);
+  await assert.rejects(run(state, api, async () => {}, { submit: true }), /failed/);
+  assert.equal(api.imageSubmissions.length, 1);
+  fail = false;
+  m.characters[0].image.revision = 2;
+  state = await plan(m, state, api);
+  await run(state, api, async () => {}, { submit: true });
+  assert.equal(api.imageSubmissions.length, 2);
+  assert.equal(state.budget.committed, 8);
+  state = await plan(m, state, api);
+  assert.deepEqual(state.budget, { maximum: 20, committed: 8, planned: 6 });
+});
