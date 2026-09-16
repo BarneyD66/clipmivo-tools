@@ -12,6 +12,7 @@ English · [简体中文](docs/README.zh-CN.md) · [Website](https://clipmivoai.
 | CLI | [Install and use the CLI](cli/README.md) |
 | MCP | [Connect a local stdio server](mcp/README.md) |
 | Agent Skill | [clipmivo-video](skills/clipmivo-video/SKILL.md) |
+| Multi-shot film preview | [clipmivo-film](skills/clipmivo-film/SKILL.md) |
 
 Sign in at [ClipmivoAI](https://clipmivoai.com/?section=api), create a scoped key in the API / CLI (Developer) workspace and add credits through the website. Read operations require `video:read`, quotes and generation require `video:write`, and media uploads require `files:write`. API requests create video tasks; they do not purchase credit top-ups.
 
@@ -93,3 +94,12 @@ The Skill can use the installed MCP or CLI. It preserves existing budget authori
 Use GitHub issues for reproducible client bugs without credentials or private media. Account, payment and billing questions: **contact@clipmivoai.com**. Service use remains subject to the website's terms and privacy policy.
 
 This repository contains public client tools and documentation, not the website backend.
+
+## Multi-shot film preview
+
+The new [clipmivo-film skill](skills/clipmivo-film/SKILL.md) adds a local script-to-film workflow: live video capability/quote selection, a cumulative Credit budget, resumable per-shot jobs and Shotcut editing. See [installation and commands](skills/clipmivo-film/references/install.md).
+
+Image and video generation use the same customer key with their respective scopes. The preview now plans character images, binds returned owned assets to dependent videos, and tracks both stages in one cumulative budget. It filters live capabilities and quotes; it is not a verified best-quality model recommender. Server-side creative model routing and cloud editing remain unavailable.
+
+Local validation: 21 automated tests; an HTTP fixture covering image jobs, reference handoff, video jobs and authenticated downloads; actual Shotcut rendering of an 8-second labelled synthetic film with captions and audio. The earlier video-only fixture also rendered five minutes. These are technical test artifacts, not model-quality demonstrations. Real paid generation acceptance and Claude Code/WorkBuddy runtime testing remain pending. See the installation guide for platform status.
+
