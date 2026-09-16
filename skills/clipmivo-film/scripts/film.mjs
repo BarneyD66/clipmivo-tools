@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
 import { parseArgs } from 'node:util';
 import { Api, apiOrigin } from './api.mjs';
+import { planImages, runImages, projectBudget } from './images.mjs';
 
 const hash = (value) =>
   createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -53,6 +54,12 @@ export function validateManifest(m) {
     'Use 1–120 shots',
   );
   const ids = new Set();
+  check(m.characters === undefined || Array.isArray(m.characters), 'characters must be an array');
+  const characterIds = new Set();
+  for (const c of m.characters || []) {
+    check(/^[a-zA-Z0-9_-]{1,60}$/.test(c.id || '') && !characterIds.has(c.id), 'Invalid or duplicate character id');
+    characterIds.add(c.id);
+  }
   for (const s of m.shots) {
     check(
       /^[a-zA-Z0-9_-]{1,60}$/.test(s.id || '') && !ids.has(s.id),
@@ -92,6 +99,8 @@ export function validateManifest(m) {
       s.character_ids === undefined || Array.isArray(s.character_ids),
       'character_ids must be an array',
     );
+    check((s.character_ids || []).every((id) => characterIds.has(id)), `Unknown character in shot ${s.id}`);
+    check(s.mode !== 'text-to-video' || !(s.character_ids?.length || s.image_urls?.length), 'Text workflow cannot silently ignore references');
   }
   const seconds = m.shots.reduce((n, s) => n + s.duration, 0);
   check(
@@ -106,7 +115,7 @@ function references(m, shot, origin) {
     const c = (m.characters || []).find((x) => x.id === id);
     check(
       c?.asset_url,
-      `Character ${id} needs an owned reference image. Public image-generation API is not yet connected.`,
+      `Character ${id} needs an owned reference image. Add asset_url or an image generation specification.`,
     );
     refs.push(c.asset_url);
   }
@@ -169,6 +178,7 @@ export function candidates(m, shot, models, origin) {
 }
 export async function plan(manifest, state, api) {
   validateManifest(manifest);
+  const originalManifest = structuredClone(manifest);
   check(
     !state || state.origin === api.origin,
     'Project origin is pinned; create a separate project for another deployment',
@@ -182,6 +192,18 @@ export async function plan(manifest, state, api) {
     jobs: {},
     shots: [],
   };
+  // Plan on a copy so a failed quote or budget validation cannot mutate callers.
+  state = structuredClone(state);
+  state.manifest = originalManifest;
+  const imagePlan = await planImages(manifest, state, api);
+  manifest = imagePlan.manifest;
+  if (!imagePlan.ready) {
+    state.shots = [];
+    state.stage = 'references';
+    state.references_ready = false;
+    state.budget = projectBudget(state);
+    return state;
+  }
   const discovery = await api.json('models');
   const models = Array.isArray(discovery) ? discovery : discovery?.models;
   check(Array.isArray(models), 'Invalid model catalog');
@@ -275,7 +297,7 @@ export async function plan(manifest, state, api) {
       })),
     });
   }
-  const committed = Object.values(state.jobs)
+  const committed = [...Object.values(state.jobs), ...Object.values(state.image_jobs || {})]
     .filter((j) => j.submitted)
     .reduce((n, j) => n + j.credits, 0);
   const newCredits = next
@@ -286,7 +308,8 @@ export async function plan(manifest, state, api) {
     `Budget exceeded: ${committed} committed + ${newCredits} planned > ${manifest.budget_credits}. Failed/uncertain jobs remain conservatively reserved.`,
   );
   Object.assign(state, {
-    manifest,
+    manifest: originalManifest,
+    stage: 'videos',
     shots: next,
     quote_time: new Date().toISOString(),
     budget: {
@@ -305,7 +328,9 @@ export async function run(
   { submit = false, recoverUncertain = false } = {},
 ) {
   check(state.origin === api.origin, 'Project origin mismatch');
-  const committed = Object.values(state.jobs)
+  delete state.paused_reason;
+  if (state.stage === 'references') return runImages(state, api, persist, { submit, recoverUncertain });
+  const committed = [...Object.values(state.jobs), ...Object.values(state.image_jobs || {})]
     .filter((j) => j.submitted)
     .reduce((n, j) => n + j.credits, 0);
   const planned = state.shots
@@ -316,7 +341,7 @@ export async function run(
     'Budget exceeded',
   );
   const checkpoint = async () => {
-    const held = Object.values(state.jobs)
+    const held = [...Object.values(state.jobs), ...Object.values(state.image_jobs || {})]
       .filter((j) => j.submitted)
       .reduce((n, j) => n + j.credits, 0);
     const pending = state.shots
@@ -329,6 +354,21 @@ export async function run(
     };
     await persist(state);
   };
+  const successful = (job) => ['succeeded', 'completed'].includes(job.status);
+  const poll = async (job, label) => {
+    const result = await api.json(`videos/generations/${encodeURIComponent(job.task_id)}`);
+    check(typeof result?.status === 'string', 'Invalid task status');
+    job.status = result.status;
+    job.updated = new Date().toISOString();
+    await checkpoint();
+    if (['failed', 'needs_review', 'cancelled', 'canceled', 'expired'].includes(job.status))
+      throw new Error(`Shot ${label}: ${job.status}. No automatic paid regeneration.`);
+  };
+  // Refresh all outstanding historical jobs before admitting more work. A revised
+  // shot does not cancel its old remote task or free its concurrency slot.
+  for (const [key, job] of Object.entries(state.jobs)) {
+    if (job.task_id && !successful(job)) await poll(job, key);
+  }
   for (const shot of state.shots) {
     const job = state.jobs[shot.job_key];
     if (!job.task_id && (!job.submitted || job.status === 'submitting')) {
@@ -337,16 +377,31 @@ export async function run(
         throw new Error(
           'Uncertain submission: use --recover-uncertain with --submit to reuse the saved request/key',
         );
+      const active = Object.values(state.jobs).filter((j) => j.submitted && !successful(j)).length;
+      if (!job.submitted && active >= 3) continue;
       // Write-ahead record: a crash cannot accidentally create a new billable task.
+      const wasSubmitted = job.submitted;
       job.submitted = true;
       job.status = 'submitting';
       await checkpoint();
-      const result = await api.json(
+      let result;
+      try { result = await api.json(
         'videos/generations',
         'POST',
         job.request,
         job.idempotency_key,
-      );
+      ); } catch (error) {
+        if (!wasSubmitted && error.status === 429 && ['too_many_concurrent_jobs', 'rate_limit_exceeded'].includes(error.message)) {
+          // These explicit server rejections create no task. Keep the exact
+          // request/key for the next user-authorized run; never auto-retry here.
+          job.submitted = false;
+          job.status = 'planned';
+          state.paused_reason = error.message;
+          await checkpoint();
+          return state;
+        }
+        throw error;
+      }
       check(
         typeof result?.id === 'string' && /^[\w-]{1,200}$/.test(result.id),
         'Invalid task id; submission remains uncertain',
@@ -355,27 +410,12 @@ export async function run(
       job.status = result.status || 'queued';
       await checkpoint();
     }
-    if (job.task_id) {
-      const result = await api.json(
-        `videos/generations/${encodeURIComponent(job.task_id)}`,
-      );
-      check(typeof result?.status === 'string', 'Invalid task status');
-      job.status = result.status;
-      job.updated = new Date().toISOString();
-      await checkpoint();
-      if (
-        ['failed', 'needs_review', 'cancelled', 'canceled', 'expired'].includes(
-          job.status,
-        )
-      )
-        throw new Error(
-          `Shot ${shot.id}: ${job.status}. No automatic paid regeneration.`,
-        );
-    }
+    if (job.task_id && !successful(job)) await poll(job, shot.id);
   }
   return state;
 }
 export async function collect(state, directory, api, persist) {
+  check(state.stage !== 'references', 'Reference stage: finish images and run plan again before collecting video');
   const mediaDir = join(directory, 'media');
   await mkdir(mediaDir, { recursive: true });
   const clips = [];
@@ -466,7 +506,11 @@ async function main() {
       JSON.stringify(
         {
           project: stateFile,
+          stage: state.stage || 'videos',
+          next_step: state.stage === 'references' && state.references_ready ? 'Run plan again with the manifest to quote dependent videos' : undefined,
+          paused_reason: state.paused_reason,
           budget: state.budget,
+          images: (state.images || []).map((item) => ({ id: item.id, status: state.image_jobs[item.job_key].status, credits: state.image_jobs[item.job_key].credits, asset_id: state.image_jobs[item.job_key].asset_id })),
           shots: state.shots.map((s) => ({
             id: s.id,
             model: state.jobs[s.job_key].request.model,

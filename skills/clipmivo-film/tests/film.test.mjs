@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'node:http';
 import { Api, apiOrigin } from '../scripts/api.mjs';
+import { imageCandidates } from '../scripts/images.mjs';
 import {
   validateManifest,
   candidates,
@@ -269,7 +270,8 @@ test('HTTP adapter sends scoped auth, preserves idempotency and downloads bytes'
   process.env.CLIPMIVO_API_KEY = 'fixture-not-a-real-key';
   const dir = await mkdtemp(join(tmpdir(), 'clipmivo-film-'));
   try {
-    const api = new Api(`http://127.0.0.1:${server.address().port}`),
+    let clock = 0;
+    const api = new Api(`http://127.0.0.1:${server.address().port}`, { now: () => clock, sleep: async (ms) => { clock += ms; } }),
       s = await plan(manifest(), null, api);
     await run(s, api, async () => {}, { submit: true });
     const timeline = await collect(s, dir, api, async () => {});
@@ -291,4 +293,162 @@ test('HTTP adapter sends scoped auth, preserves idempotency and downloads bytes'
     await new Promise((done) => server.close(done));
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+test('request pacing separates scopes and serializes simultaneous admissions', async () => {
+  let clock = 0;
+  const api = new Api('https://clipmivoai.com', { now: () => clock, sleep: async (ms) => { clock += ms; } });
+  const admitted = [];
+  await Promise.all(Array.from({ length: 11 }, async () => {
+    await api.pace('video:write', true);
+    admitted.push(clock);
+  }));
+  assert.equal(clock, 61000);
+  assert.equal(admitted.length, 11);
+  await api.pace('image:write', true);
+  assert.equal(clock, 61000);
+  await api.pace('video:read', false);
+  await api.pace('video:read', false);
+  assert.equal(clock, 62100);
+});
+
+test('unfinished tasks cap submissions at three and completion releases slots', async () => {
+  const api = fixture(), base = api.json.bind(api), m = manifest();
+  m.shots = Array.from({ length: 5 }, (_, i) => ({ ...m.shots[0], id: `s${i}` }));
+  let done = false;
+  api.json = async (...args) => args[0].startsWith('videos/generations/task_')
+    ? { status: done ? 'succeeded' : 'running' } : base(...args);
+  const state = await plan(m, null, api);
+  await run(state, api, async () => {}, { submit: true });
+  assert.equal(api.submissions.length, 3);
+  await run(state, api, async () => {}, { submit: true });
+  assert.equal(api.submissions.length, 3);
+  done = true;
+  await run(state, api, async () => {}, { submit: true });
+  assert.equal(api.submissions.length, 5);
+});
+
+test('explicit concurrency rejection pauses without reserving an unaccepted task', async () => {
+  const api = fixture(), base = api.json.bind(api);
+  let busy = true;
+  api.json = async (...args) => {
+    if (args[0] === 'videos/generations' && busy)
+      throw Object.assign(new Error('too_many_concurrent_jobs'), { status: 429 });
+    return base(...args);
+  };
+  const state = await plan(manifest(), null, api);
+  const key = state.shots[0].job_key;
+  await run(state, api, async () => {}, { submit: true });
+  assert.equal(state.jobs[key].submitted, false);
+  assert.equal(state.budget.committed, 0);
+  assert.equal(state.paused_reason, 'too_many_concurrent_jobs');
+  busy = false;
+  await run(state, api, async () => {}, { submit: true });
+  assert.equal(api.submissions[0].key, state.jobs[key].idempotency_key);
+  assert.equal(state.paused_reason, undefined);
+});
+
+test('rate rejection during uncertain recovery never releases its reservation', async () => {
+  const api = fixture(), base = api.json.bind(api);
+  const state = await plan(manifest(), null, api);
+  const job = state.jobs[state.shots[0].job_key];
+  job.submitted = true;
+  job.status = 'submitting';
+  api.json = async (...args) => {
+    if (args[0] === 'videos/generations')
+      throw Object.assign(new Error('rate_limit_exceeded'), { status: 429 });
+    return base(...args);
+  };
+  await assert.rejects(run(state, api, async () => {}, { submit: true, recoverUncertain: true }), /rate_limit/);
+  assert.equal(job.submitted, true);
+  assert.equal(job.status, 'submitting');
+});
+
+function imageFixture() {
+  const api = fixture(), base = api.json.bind(api), images = new Map();
+  api.imageSubmissions = [];
+  api.json = async (path, method, body, key) => {
+    if (path === 'images/models') return { enabled: true, models: [{ id: 'fixture-image', available: true,
+      maxPrompt: 4000, maxReferences: 0, profiles: [{ ratio: '1:1', resolution: '1K', quality: 'standard', reference: false }] }] };
+    if (path === 'images/quote') {
+      assert.equal(body.model, 'fixture-image');
+      assert.deepEqual(body.asset_ids, []);
+      return { credits: 4, estimated: false };
+    }
+    if (path === 'images/jobs') {
+      assert.equal(body.quoted_credits, 4);
+      assert.equal(body.settings.prompt, 'Owned fictional character portrait');
+      api.imageSubmissions.push({ body: structuredClone(body), key });
+      const id = `img_${key.slice(-12)}`;
+      images.set(id, { id, status: 'succeeded', asset_id: `asset_${key.slice(-12)}` });
+      return { id, status: 'queued' };
+    }
+    if (path.startsWith('images/jobs/')) return images.get(path.split('/').at(-1));
+    if (path === 'models') return { models: [model('cheap', { mode: 'reference-to-video', capabilities: { max_images: 1 } })] };
+    return base(path, method, body, key);
+  };
+  return api;
+}
+function imageManifest() {
+  const m = manifest();
+  m.characters = [{ id: 'hero', image: { prompt: 'Owned fictional character portrait', ratio: '1:1', resolution: '1K', quality: 'standard' } }];
+  for (const s of m.shots) { s.mode = 'reference-to-video'; s.character_ids = ['hero']; }
+  return m;
+}
+test('generated character reference flows into video quotes with one cumulative budget', async () => {
+  const api = imageFixture(), m = imageManifest();
+  let state = await plan(m, null, api);
+  assert.equal(state.stage, 'references');
+  assert.equal(state.budget.planned, 4);
+  assert.equal(api.imageSubmissions.length, 0);
+  await run(state, api, async () => {});
+  assert.equal(api.imageSubmissions.length, 0);
+  await run(state, api, async () => {}, { submit: true });
+  assert.equal(state.references_ready, true);
+  assert.equal(api.submissions.length, 0);
+  state = await plan(m, state, api);
+  assert.equal(state.stage, 'videos');
+  assert.deepEqual(state.budget, { maximum: 20, committed: 4, planned: 6 });
+  const ref = state.jobs[state.shots[0].job_key].request.image_urls[0];
+  assert.match(ref, /^http:\/\/127.0.0.1:1234\/api\/open\/v1\/assets\/asset_[\w-]+\/file$/);
+  await run(state, api, async () => {}, { submit: true });
+  assert.equal(api.submissions.length, 2);
+  assert.equal(api.imageSubmissions.length, 1);
+  assert.deepEqual(state.budget, { maximum: 20, committed: 10, planned: 0 });
+  m.shots[1].revision = 2;
+  state = await plan(m, state, api);
+  assert.deepEqual(state.budget, { maximum: 20, committed: 10, planned: 3 });
+  assert.equal(api.imageSubmissions.length, 1);
+});
+test('image cost prevents a video plan exceeding shared budget', async () => {
+  const api = imageFixture(), m = imageManifest();
+  m.budget_credits = 9;
+  const state = await plan(m, null, api);
+  await run(state, api, async () => {}, { submit: true });
+  await assert.rejects(plan(m, state, api), /Budget exceeded/);
+  assert.equal(state.stage, 'references');
+  assert.equal(api.submissions.length, 0);
+});
+test('lost image acknowledgement reuses original request and key', async () => {
+  const api = imageFixture(), base = api.json.bind(api);
+  let lost = true;
+  api.json = async (...args) => {
+    const result = await base(...args);
+    if (args[0] === 'images/jobs' && lost) { lost = false; throw new Error('network_response_uncertain'); }
+    return result;
+  };
+  const state = await plan(imageManifest(), null, api);
+  await assert.rejects(run(state, api, async () => {}, { submit: true }), /uncertain/);
+  await assert.rejects(run(state, api, async () => {}, { submit: true }), /Uncertain image/);
+  await run(state, api, async () => {}, { submit: true, recoverUncertain: true });
+  assert.deepEqual(api.imageSubmissions[0], api.imageSubmissions[1]);
+  assert.equal(state.budget.committed, 4);
+});
+test('image capability selection excludes unsupported reference profiles and preserves preferences', () => {
+  const image = imageManifest().characters[0].image;
+  const model = { id: 'x', available: true, maxPrompt: 4000, maxReferences: 1,
+    profiles: [{ ratio: '1:1', resolution: '1K', quality: 'standard', reference: false }] };
+  assert.equal(imageCandidates(image, [model]).length, 1);
+  assert.equal(imageCandidates({ ...image, asset_ids: ['asset_existing'] }, [model]).length, 0);
+  assert.equal(imageCandidates({ ...image, model: 'other' }, [model]).length, 0);
 });

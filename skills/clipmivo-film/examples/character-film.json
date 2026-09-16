@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "id": "character-film",
+  "title": "Reference-to-film example: set your authorized budget before running",
+  "aspect_ratio": "16:9",
+  "quality": "720p",
+  "budget_credits": 1,
+  "target_seconds": 8,
+  "preference": "economy",
+  "characters": [
+    {
+      "id": "hero",
+      "image": {
+        "prompt": "Portrait reference of an original fictional adult explorer in a yellow raincoat, short dark hair, green backpack, plain neutral background, natural lighting.",
+        "ratio": "1:1",
+        "resolution": "1K",
+        "quality": "standard"
+      }
+    }
+  ],
+  "shots": [
+    {
+      "id": "arrival",
+      "prompt": "The explorer from the reference image walks slowly toward a quiet lakeshore at sunrise. Preserve their face, yellow raincoat and green backpack. Wide establishing shot with a gentle tracking camera.",
+      "mode": "reference-to-video",
+      "character_ids": ["hero"],
+      "duration": 4
+    },
+    {
+      "id": "discovery",
+      "prompt": "The same explorer from the reference image pauses beside the lake and looks at a small wooden boat. Preserve their face, yellow raincoat and green backpack. Medium shot, gentle morning light.",
+      "mode": "reference-to-video",
+      "character_ids": ["hero"],
+      "duration": 4
+    }
+  ]
+}
