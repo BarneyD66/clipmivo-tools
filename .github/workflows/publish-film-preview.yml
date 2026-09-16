@@ -1,0 +1,35 @@
+name: Publish film preview
+on:
+  push:
+    branches: [codex/film-release-0.3]
+permissions:
+  contents: write
+concurrency:
+  group: publish-film-preview-0.3
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify film behavior
+        run: node --test skills/clipmivo-film/tests/film.test.mjs
+      - name: Verify Python syntax
+        run: python -m py_compile skills/clipmivo-film/scripts/edit.py skills/clipmivo-film/tests/make-fixture.py
+      - name: Package allowlisted skill files
+        run: python scripts/package-film-preview.py
+      - name: Verify extracted package
+        run: |
+          python -m zipfile -e dist-film/clipmivo-film-preview-0.3.zip /tmp/film-release-check
+          node --test /tmp/film-release-check/clipmivo-film/tests/film.test.mjs
+      - name: Publish preview and attachments
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create film-v0.3.0 dist-film/clipmivo-film-preview-0.3.zip dist-film/SHA256SUMS.txt --verify-tag=false --target "$GITHUB_SHA" --title "Clipmivo Film 0.3 — Developer Preview" --notes-file docs/FILM-RELEASE-0.3.md --prerelease --latest=false
