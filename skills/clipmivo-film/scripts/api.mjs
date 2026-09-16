@@ -1,5 +1,6 @@
 import { createWriteStream } from 'node:fs';
-import { unlink, rename } from 'node:fs/promises';
+import { unlink, link, stat } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
@@ -84,13 +85,17 @@ export class Api {
       await response.body?.cancel();
       throw new ApiError('download_failed', response.status);
     }
-    const partial = `${destination}.part`;
+    const partial = `${destination}.${randomUUID()}.part`;
     try {
       await pipeline(
         Readable.fromWeb(response.body),
         createWriteStream(partial, { flags: 'wx' }),
       );
-      await rename(partial, destination);
+      if (!(await stat(partial)).size) throw new ApiError('empty_download');
+      // Atomic no-overwrite publication; a crashed older attempt cannot block
+      // this attempt or have its partial file deleted by it.
+      await link(partial, destination);
+      await unlink(partial);
     } catch (error) {
       await unlink(partial).catch(() => {});
       throw error;

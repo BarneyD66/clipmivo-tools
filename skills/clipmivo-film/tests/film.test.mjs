@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'node:http';
@@ -189,6 +189,39 @@ test('runtime and origin mismatches are rejected', async () => {
     plan(manifest(), s, { ...fixture(), origin: 'https://example.com' }),
     /pinned/,
   );
+});
+test('downloads preserve existing outputs and crash leftovers, and reject empty files', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'clipmivo-film-download-'));
+  try {
+    const api = new Api('https://clipmivoai.com');
+    const output = join(dir, 'clip.mp4');
+    api.request = async () => new Response('new video bytes');
+    await writeFile(output, 'previous successful clip');
+    await writeFile(`${output}.part`, 'previous interrupted download');
+    await assert.rejects(api.download('task_fixture', output), {
+      code: 'EEXIST',
+    });
+    assert.equal(await readFile(output, 'utf8'), 'previous successful clip');
+    assert.equal(
+      await readFile(`${output}.part`, 'utf8'),
+      'previous interrupted download',
+    );
+    const fresh = join(dir, 'fresh.mp4');
+    await api.download('task_fixture', fresh);
+    assert.equal(await readFile(fresh, 'utf8'), 'new video bytes');
+    api.request = async () => new Response('');
+    await assert.rejects(
+      api.download('task_fixture', join(dir, 'empty.mp4')),
+      /empty_download/,
+    );
+    assert.deepEqual((await readdir(dir)).sort(), [
+      'clip.mp4',
+      'clip.mp4.part',
+      'fresh.mp4',
+    ]);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 test('HTTP adapter sends scoped auth, preserves idempotency and downloads bytes', async () => {
   const observed = [],
